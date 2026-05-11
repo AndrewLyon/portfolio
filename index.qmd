@@ -14,3 +14,7 @@ This is my portfolio for learning **R, data analysis, GitHub, and Quarto**. In t
 ## Assignments are in a0X format, where the X is the assignment number.
 
 # Course Lessons
+
+[Literate analysis](./assignments/a01_quarto_literate_analysis.html)
+
+[Cleaning and Organizing Data](./assignments/a03.html)
