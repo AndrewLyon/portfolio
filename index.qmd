@@ -11,8 +11,6 @@ toc: true
 
 This is my portfolio for learning **R, data analysis, GitHub, and Quarto**. In this repository, there are a few assignments that I've completed.
 
-Assignments are in a0X format, where the X is the assignment number.
+## Assignments are in a0X format, where the X is the assignment number.
 
 # Course Lessons
-
-## 
