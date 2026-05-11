@@ -1,0 +1,288 @@
+---
+title: "a03"
+author: "AndrewLyon"
+editor: visual
+toc: true
+---
+
+# Background
+
+This activity's purpose is to practice
+
+## Data import
+
+First we will import from [Alaska Department of Fish & Game containing commercial catch data from 1878-1997](https://knb.ecoinformatics.org/#view/df35b.304.2). We will import it below as well as loading our required packages:
+
+```{r}
+#| warning: false
+library(tidyr)
+library(dplyr)
+library(readr)
+```
+
+### Data import from url directly:
+
+```{r}
+catch_og <- read_csv("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.302.1")
+```
+
+### Explore the data a little bit:
+
+```{r}
+##shows the full column info
+spec(catch_og)
+#show the first 10 rows
+head(catch_og, n=10)
+#View data in a human friendly way
+View(catch_og)
+```
+
+## Selecting specific data
+
+We can use dplyr and %\>% to link commands together to select specific data. Here we generate a new object called catch_data with just our catching data.
+
+```{r}
+catch_data <- catch_og %>%
+    select(Region, Year, Chinook, Sockeye, Coho, Pink, Chum)
+```
+
+### Viewing selected data
+
+We can then view the data we selected by using either spec(), View(), or dplyr's glimpse. We specify the glimpse used by dply by calling dplyr directly as dlyr::
+
+```{r}
+spec(catch_data) #view data structure
+View(catch_data) #view data in human way
+dplyr::glimpse(catch_data) #look at a the data in a non human way
+```
+
+## Practice using mutate()
+
+we can mutate the Chinook counts from an character to an integer through dplyr's mutate and r's as.numeric(). By calling head() for each object, we can see that the type of values for chinook changees
+
+```{r}
+head(catch_data) #view top 5 rows
+catch_clean <- catch_data %>%mutate(Chinook = as.numeric(Chinook)) #changes the type of value from characters into numbers
+head(catch_clean) #view top 5 rows
+```
+
+#### Investigate the NAs from the above error
+
+We can tell R that we want to see any chinook values that generated a NA value
+
+```{r}
+i <- which(is.na(catch_clean$Chinook))
+i
+catch_data[i,]
+```
+
+#### Editing the NA value
+
+Mistakes happen. Let's change that incorrect value.
+
+```{r}
+catch_clean <- catch_data %>% mutate(Chinook = if_else(condition = Chinook == "I", true = "1",  false = Chinook),
+           Chinook = as.numeric(Chinook)) #we look for the capital letter I (as in igloo) and replace it with the number one.
+
+#look at the row again:
+catch_clean[i, ]
+head(catch_clean)
+```
+
+## Changing the shape of the data:
+
+We can change the shape of the data so that it makes better sense:
+
+We can pivot the data from a 'wide' to a 'tall' shape(think of the shape of your data like box viewed form the side)
+
+```{r}
+head(catch_clean) #show our data, notice the data shape on the first row
+
+catch_long <- catch_clean %>% 
+    #pivot longer all columns except Region and Year
+    pivot_longer(
+        cols = -c(Region, Year),#selects all columns except Region and year for the function
+        names_to = "species", #creates a column from the coloumns selected in cols, you select the name
+        values_to = "catch" #creates a column from the values in the selected columns, you select the name
+    )
+
+head(catch_long) #review the work
+```
+
+We can also go in the opposite direction, making the 'tall' version into a 'wide' version
+
+```{r}
+catch_wide <- catch_long %>%#creaate an object named catch_wide from catch_long
+    pivot_wider(names_from = species,#take the values of the species column and makes them their own column each, removes the species column
+                values_from = catch) #takes the values of catch and redistributes them into their respective years and fish name
+
+head(catch_wide) #view it
+```
+
+## Renaming columns
+
+suppose you gave the column the wrong name. It's ok, there's no need to shed a tear - we can just change the name of the column
+
+```{r}
+catch_long <- catch_long %>%
+    rename(catch_thousands = catch)#renames the column 'catch' into 'catch_thousands'
+
+head(catch_long)
+```
+
+## Add columns using mutate()
+
+Missed a column, or need to add more information? That's also easy with mutate()
+
+```{r}
+catch_long <- catch_long %>%
+    mutate(catch = catch_thousands * 1000) #we create a new column that is the multiple of catch_thousands by 1000 called catch
+
+head(catch_long)
+```
+
+Want to add and subsequently remove a column?
+
+```{r}
+catch_long <- catch_long %>%
+    mutate(catch = catch_thousands * 1000) %>% select(-catch_thousands) #same as above but also selects all columns except catch_thoudsands
+
+head(catch_long)
+```
+
+## Summarizing specific data points
+
+What if we wanted to see what values are in a specific column?
+
+```{r}
+unique(catch_og$Region) #all unique values of Region are shown
+```
+
+We can then split the data, apply a function and combine that data. We can essentially do that in one line of code.
+
+```{r}
+mean_region <- catch_long %>%
+    group_by(Region) %>%#separates the data based on region
+    summarize(mean_catch = mean(catch)) #creates a new column named mean_catch based on values found in $catch
+
+head(mean_region)
+```
+
+You can also use this concept to count the number of rows for a given column
+
+```{r}
+n_region <- catch_long %>%
+    group_by(Region) %>%#separate our data based on values in Region
+    summarize(n = n()) #summarizes the data based on the current size of the object
+
+head(n_region)
+```
+
+## Filtering
+
+Sometimes you need to select a specific value of a column. You can use dplyr's filter() function
+
+```{r}
+sse_catch <- catch_long %>%
+    filter(Region == "SSE") #selects SSE as the value of Region that we want
+
+head(sse_catch)
+```
+
+## Sorting
+
+maybe you want things listed numerically or even alphabetically
+
+```{r}
+mean_region <- catch_long %>%
+    group_by(Region) %>% #select data based on Region
+    summarize(mean_catch = mean(catch)) %>% #summarizes the mean of catch based on the region
+    arrange(mean_catch) #the values of the rows are ordered by mean_catch, default is asce ding order. arrange(desc(mean_catch)) would cause the code to order in descending order
+
+head(mean_region)
+```
+
+## Splitting a column
+
+maybe you need to split a column based on the values it holds
+
+```{r}
+sites_df <- data.frame(site = c("HAW-101",
+                                "HAW-103",
+                                "OAH-320",
+                                "OAH-219",
+                                "MAU-039"))
+
+sites_df %>%
+    separate(site, c("island", "site_number"), "-")#this creates a column named island and another named site_number based on the values of site. It takes the '-' and uses that as it's split point
+```
+
+have a list of things that you need to become just one thing? easy! we do the same but in reverse
+
+```{r}
+dates_df <- data.frame(
+    year = c("1930",
+             "1930",
+             "1930"),
+    month = c("12",
+              "12",
+              "12"),
+    day = c("14",
+            "15",
+            "16")
+)
+
+dates_df %>%
+    unite(date, year, month, day, sep = "-") #this takes the columns and combines their values together, separated by a '-'
+```
+
+# Simplified pipeline
+
+You can combine all of the steps above into a single chunk
+
+```{r}
+catch_original <- read_csv("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.302.1") #generates the data objecct catch_original from the csv online
+
+mean_region <- catch_original %>% #creates catch_original
+  select(-All, -notesRegCode) %>%  #selects all the data except notesRegCode
+  mutate(Chinook = if_else(Chinook == "I", "1",  Chinook)) %>%  #converts all I values into 1
+  mutate(Chinook = as.numeric(Chinook)) %>% 
+  #converts the va;lues of Chinook into nimbers
+  pivot_longer(-c(Region, Year), #pivots the table based on all columns except Region and Year
+               names_to = "species", #names the columns into one called species
+               values_to = "catch") %>% #moves all of the old cloumn numbers into one called catch
+  mutate(catch = catch*1000) %>% #multiplies the catch number by 1000
+  group_by(Region) %>% #groups the data by region
+  summarize(mean_catch = mean(catch)) %>% #summarizes the average catch into a new column called mean_catch 
+  arrange(desc(mean_catch)) #arranges the values of the row based on descending (highest to lowest) values of mean_catch
+
+head(mean_region)
+```
+
+## Summary of data
+
+```{r}
+mean_region <- catch_original %>% #creates catch_original
+  select(-All, -notesRegCode) %>%  #selects all the data except notesRegCode
+  mutate(Chinook = if_else(Chinook == "I", "1",  Chinook)) %>%  #converts all I values into 1
+  mutate(Chinook = as.numeric(Chinook)) %>% 
+  #converts the va;lues of Chinook into nimbers
+  pivot_longer(-c(Region, Year), #pivots the table based on all columns except Region and Year
+               names_to = "species", #names the columns into one called species
+               values_to = "catch") %>% #moves all of the old cloumn numbers into one called catch
+  mutate(catch = catch*1000) %>% #multiplies the catch number by 1000
+  group_by(species) %>% #groups the data by region
+  summarize(mean_catch = mean(catch)) %>% #summarizes the average catch into a new column called mean_catch 
+  arrange(desc(mean_catch)) #arranges the values of the row based on descending (highest to lowest) values of mean_catch
+head(mean_region)
+```
+
+Based on the values of mean_region, I can make the following conclusions:\
+
+-   The region SSE has the highest catch of salmon overall
+
+-   SOP has the lowest rate of caught salmon
+
+-   It would be wise to investigate the cause of the low catch rate of SOP and compare that to SSE. Maybe there is an external factor that could explain the difference in catch quantity
+
+-   we cam also see that pink salmon are the most caught species of salmon overall
